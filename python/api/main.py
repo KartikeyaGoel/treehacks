@@ -5,7 +5,7 @@ Handles file upload, validation, and sleep analysis
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 import sys
 from pathlib import Path
 
@@ -25,21 +25,35 @@ app = FastAPI(
 # CORS middleware for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://*.vercel.app"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "https://*.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.get("/")
+@app.get("/health")
+async def health():
+    """Health check (JSON) for scripts and load balancers"""
+    return {"status": "healthy", "service": "SOMNI AI Backend", "version": "1.0.0"}
+
+
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "SOMNI AI Backend",
-        "version": "1.0.0"
-    }
+    """Root: show message for browsers; API is at /api/analyze and /docs"""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head><title>SOMNI AI API</title></head>
+    <body style="font-family:sans-serif;max-width:480px;margin:2rem auto;padding:1rem;">
+      <h1>SOMNI AI Backend</h1>
+      <p>This is the <strong>API server</strong> (port 8000). It does not serve the app UI.</p>
+      <p><strong>Open the frontend</strong> in your browser:</p>
+      <p><a href="http://localhost:3000">http://localhost:3000</a></p>
+      <p>API docs: <a href="/docs">/docs</a></p>
+    </body>
+    </html>
+    """
 
 
 @app.post("/api/analyze")

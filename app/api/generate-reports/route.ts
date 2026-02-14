@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { NextRequest, NextResponse } from 'next/server';
 import { SOMNIOrchestrator } from '@/lib/agents/orchestrator';
 import { generatePatientReport } from '@/lib/reports/patient-report';
@@ -20,26 +21,25 @@ export async function POST(req: NextRequest) {
 
     console.log('[Reports] Generating reports for analysis:', analysisId);
 
-    // Check if we have API keys for full orchestration
-    const hasAllKeys =
+    // Check if we have API keys for full orchestration (Bright Data optional — free tier uses mock data)
+    const hasCoreKeys =
       process.env.ANTHROPIC_API_KEY &&
       process.env.OPENAI_API_KEY &&
-      process.env.PERPLEXITY_API_KEY &&
-      process.env.BRIGHTDATA_API_KEY;
+      process.env.PERPLEXITY_API_KEY;
 
     let patientReport: string;
     let clinicalReport: string;
     let evidence: any[] = [];
 
-    if (hasAllKeys) {
+    if (hasCoreKeys) {
       console.log('[Reports] Using full multi-agent orchestration');
 
-      // Full orchestration with all APIs
+      // Full orchestration (Bright Data key optional; mock guideline data used when missing)
       const orchestrator = new SOMNIOrchestrator(
         process.env.ANTHROPIC_API_KEY!,
         process.env.OPENAI_API_KEY!,
         process.env.PERPLEXITY_API_KEY!,
-        process.env.BRIGHTDATA_API_KEY!
+        process.env.BRIGHTDATA_API_KEY ?? ''
       );
 
       const reports = await orchestrator.orchestrate(sleepAnalysis);
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       evidence = reports.evidence;
 
     } else {
-      console.log('[Reports] Using direct report generation (API keys not configured)');
+      console.log('[Reports] Using direct report generation (core API keys not configured)');
 
       // Fallback: Generate reports directly without orchestration
       // Mock evidence for demo

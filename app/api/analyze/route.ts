@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
+import { appendFileSync } from 'fs';
+import { join } from 'path';
+
+const DEBUG_LOG = join(process.cwd(), '.cursor', 'debug.log');
+function debugLog(payload: object) {
+  try {
+    appendFileSync(DEBUG_LOG, JSON.stringify(payload) + '\n');
+  } catch (_) {}
+}
 
 // Global in-memory cache for hackathon demo
 // In production: use Redis/Vercel KV
@@ -28,9 +37,16 @@ export async function POST(req: NextRequest) {
     pythonFormData.append('file', file);
 
     const pythonUrl = process.env.PYTHON_API_URL || 'http://localhost:8000';
-    console.log('[API] Forwarding to Python backend:', `${pythonUrl}/api/analyze`);
+    const fullAnalyzeUrl = `${pythonUrl}/api/analyze`;
+    console.log('[API] Forwarding to Python backend:', fullAnalyzeUrl);
 
-    const response = await fetch(`${pythonUrl}/api/analyze`, {
+    // #region agent log
+    const prePayload = {location:'app/api/analyze/route.ts:pre-fetch',message:'Resolved backend URL and env',data:{pythonUrl,fullAnalyzeUrl,hasPythonApiUrlEnv:!!process.env.PYTHON_API_URL},timestamp:Date.now(),hypothesisId:'H1-H5'};
+    fetch('http://127.0.0.1:7244/ingest/bcf9a0ec-9ec4-4e87-a18b-766fbe011f8b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(prePayload)}).catch(()=>{});
+    debugLog(prePayload);
+    // #endregion
+
+    const response = await fetch(fullAnalyzeUrl, {
       method: 'POST',
       body: pythonFormData
     });
@@ -62,6 +78,28 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[API] Error:', error);
+    // #region agent log
+    const cause = error?.cause ?? error;
+    const catchPayload = {location:'app/api/analyze/route.ts:catch',message:'Fetch failed',data:{errorMessage:error?.message,causeCode:cause?.code,causeMessage:cause?.message},timestamp:Date.now(),hypothesisId:'H1-H5'};
+    fetch('http://127.0.0.1:7244/ingest/bcf9a0ec-9ec4-4e87-a18b-766fbe011f8b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(catchPayload)}).catch(()=>{});
+    debugLog(catchPayload);
+    // #endregion
+    const isBackendUnreachable =
+      cause?.code === 'ECONNREFUSED' ||
+      cause?.code === 'ENOTFOUND' ||
+      cause?.code === 'ETIMEDOUT';
+    if (isBackendUnreachable) {
+      // #region agent log
+      debugLog({ location: 'app/api/analyze/route.ts:503', message: 'Returning 503 backend unreachable', data: { causeCode: cause?.code }, timestamp: Date.now(), hypothesisId: 'verify' });
+      // #endregion
+      return NextResponse.json(
+        {
+          detail:
+            'Analysis backend is not running. Start it with: npm run python:dev (in a separate terminal).'
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { detail: `Internal server error: ${error.message}` },
       { status: 500 }

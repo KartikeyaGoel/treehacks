@@ -299,18 +299,26 @@ export class SOMNIOrchestrator {
       const detailsResponse = await fetch(detailsUrl);
       const detailsData = await detailsResponse.json();
 
-      const results: PubMedResult[] = ids.map((id: string) => {
-        const article = detailsData.result[id];
-        return {
-          pmid: id,
-          title: article.title || 'No title available',
-          authors: article.authors?.map((a: any) => a.name).join(', ') || 'Authors not available',
-          journal: article.fulljournalname || article.source || 'Journal not available',
-          year: parseInt(article.pubdate?.split(' ')[0]) || 0,
-          abstract: article.abstract || 'Abstract not available',
-          doi: article.elocationid || undefined
-        };
-      });
+      const resultMap = detailsData?.result;
+      if (!resultMap || typeof resultMap !== 'object') {
+        return [];
+      }
+
+      const results: PubMedResult[] = ids
+        .map((id: string) => {
+          const article = resultMap[id];
+          if (!article) return null;
+          return {
+            pmid: id,
+            title: article.title || 'No title available',
+            authors: article.authors?.map((a: any) => a.name).join(', ') || 'Authors not available',
+            journal: article.fulljournalname || article.source || 'Journal not available',
+            year: parseInt(article.pubdate?.split(' ')[0]) || 0,
+            abstract: article.abstract || 'Abstract not available',
+            doi: article.elocationid || undefined
+          };
+        })
+        .filter((r: PubMedResult | null): r is PubMedResult => r !== null);
 
       console.log(`[PubMed] Found ${results.length} articles for: ${query}`);
       return results;
@@ -354,8 +362,14 @@ export class SOMNIOrchestrator {
   private async scrapeBrightData(input: any): Promise<GuidelineData> {
     const { topics } = input;
 
+    // Free tier: no API key — use built-in mock CDC/AHA-style guideline data
+    if (!this.brightdataKey?.trim()) {
+      console.log('[BrightData] No API key (free tier); using mock guideline data');
+      return this.getMockGuidelineData(topics);
+    }
+
     try {
-      // BrightData API call
+      // BrightData API call (when API key is set)
       const response = await fetch('https://api.brightdata.com/datasets/v3/trigger', {
         method: 'POST',
         headers: {
@@ -384,7 +398,7 @@ export class SOMNIOrchestrator {
 
     } catch (error: any) {
       console.error('[BrightData Error]:', error.message);
-      // Return mock data for demo
+      // Return mock data for demo / fallback
       return this.getMockGuidelineData(topics);
     }
   }
