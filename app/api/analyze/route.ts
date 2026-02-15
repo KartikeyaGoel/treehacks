@@ -3,21 +3,19 @@ import { nanoid } from 'nanoid';
 import { appendFileSync } from 'fs';
 import { join } from 'path';
 import { SleepAnalyzer, parseAppleHealthXML, parseFitbitCSV, parseOuraCSV, validateSleepData } from '@/lib/sleep-analysis';
+import { setAnalysis } from '@/lib/cache';
 
 const DEBUG_LOG = join(process.cwd(), '.cursor', 'debug.log');
 function debugLog(payload: object) {
-  try {
-    appendFileSync(DEBUG_LOG, JSON.stringify(payload) + '\n');
-  } catch (_) {}
+  // Only write to filesystem in development (not on Vercel)
+  if (process.env.VERCEL !== '1') {
+    try {
+      appendFileSync(DEBUG_LOG, JSON.stringify(payload) + '\n');
+    } catch (_) {
+      // Silently fail if .cursor directory doesn't exist
+    }
+  }
 }
-
-// Global in-memory cache for hackathon demo
-// In production: use Redis/Vercel KV
-declare global {
-  var analysisCache: Record<string, any> | undefined;
-}
-
-global.analysisCache = global.analysisCache || {};
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,13 +76,10 @@ export async function POST(req: NextRequest) {
         const analysisId = nanoid();
 
         // Store result in cache
-        if (!global.analysisCache) {
-          global.analysisCache = {};
-        }
-        global.analysisCache[analysisId] = {
+        await setAnalysis(analysisId, {
           analysis: analysisResult,
           timestamp: new Date().toISOString()
-        };
+        });
 
         console.log('[API] Analysis complete (TypeScript), SHDI:', analysisResult.shdi.score);
         console.log('[API] Cached analysis with ID:', analysisId);
@@ -131,13 +126,10 @@ export async function POST(req: NextRequest) {
     const analysisId = nanoid();
 
     // Store result in cache
-    if (!global.analysisCache) {
-      global.analysisCache = {};
-    }
-    global.analysisCache[analysisId] = {
+    await setAnalysis(analysisId, {
       analysis: analysisResult,
       timestamp: new Date().toISOString()
-    };
+    });
 
     console.log('[API] Cached analysis with ID:', analysisId);
 

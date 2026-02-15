@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateClinicalReportPDF } from '@/lib/reports/generate-pdf';
+import { getAnalysis } from '@/lib/cache';
 
 export async function POST(req: NextRequest) {
   try {
     const { analysisId } = await req.json();
 
     // Retrieve cached analysis and reports
-    const analysisData = (global as any).analysisCache?.[analysisId];
+    const analysisData = await getAnalysis(analysisId);
     if (!analysisData) {
       return NextResponse.json(
         { error: 'Analysis not found' },

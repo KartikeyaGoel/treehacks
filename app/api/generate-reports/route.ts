@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SOMNIOrchestrator } from '@/lib/agents/orchestrator';
 import { generatePatientReport } from '@/lib/reports/patient-report';
 import { generateClinicalReport } from '@/lib/reports/clinical-report';
+import { getAnalysis, setAnalysis } from '@/lib/cache';
 
 export async function POST(req: NextRequest) {
   try {
     const { analysisId } = await req.json();
 
     // Retrieve cached analysis
-    const cached = global.analysisCache?.[analysisId];
+    const cached = await getAnalysis(analysisId);
     if (!cached) {
       return NextResponse.json(
         { error: 'Analysis not found' },
@@ -82,10 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Cache the reports
-    if (!global.analysisCache) {
-      global.analysisCache = {};
-    }
-    global.analysisCache[analysisId] = {
+    await setAnalysis(analysisId, {
       ...cached,
       reports: {
         patient: patientReport,
@@ -93,7 +91,7 @@ export async function POST(req: NextRequest) {
         evidence,
         usage
       }
-    };
+    });
 
     console.log('[Reports] Reports generated successfully');
 

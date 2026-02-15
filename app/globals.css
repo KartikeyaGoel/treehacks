@@ -24,6 +24,20 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+
+    /* SOMNI AI Design System - 2026 Medical Intelligence Aesthetic */
+
+    /* API Service Colors */
+    --color-claude: 139 92 246;      /* Rich purple */
+    --color-openai: 16 185 129;       /* Emerald */
+    --color-pubmed: 59 130 246;       /* Sapphire */
+    --color-brightdata: 245 158 11;   /* Amber */
+    --color-perplexity: 20 184 166;   /* Teal */
+
+    /* Health Status Colors - High Contrast */
+    --status-stable: 16 185 129;      /* Emerald */
+    --status-moderate: 245 158 11;    /* Amber */
+    --status-significant: 239 68 68;  /* Red */
   }
 }
 
@@ -33,5 +47,126 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* SOMNI AI Typography System */
+@layer components {
+  .heading-hero {
+    font-family: var(--font-playfair);
+    font-weight: 900;
+    font-size: 3.5rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .heading-section {
+    font-family: var(--font-playfair);
+    font-weight: 700;
+    font-size: 1.875rem;
+    letter-spacing: -0.01em;
+  }
+
+  .heading-card {
+    font-family: var(--font-playfair);
+    font-weight: 700;
+    font-size: 1.5rem;
+  }
+
+  .text-metric {
+    font-family: var(--font-space-mono);
+    font-weight: 700;
+    font-size: 2.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .text-body {
+    font-family: var(--font-inter);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .text-small {
+    font-family: var(--font-inter);
+    font-size: 0.875rem;
+  }
+
+  .text-code {
+    font-family: var(--font-space-mono);
+    font-size: 1rem;
+  }
+}
+
+/* SOMNI AI Animations & Effects */
+@layer utilities {
+  /* Fade-in animation for page load */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.6s ease-out forwards;
+  }
+
+  /* Pulse glow animation for API status dots */
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-4px);
+  }
+
+  /* Loading shimmer effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.5) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Glass-morphism utility classes */
+  .glass-card {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-nav {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 }

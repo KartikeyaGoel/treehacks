@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAnalysis } from '@/lib/cache';
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Retrieve cached analysis
-    const cached = (global as any).analysisCache?.[id];
+    const cached = await getAnalysis(id);
     if (!cached) {
       return NextResponse.json(
         { error: 'Analysis not found' },

@@ -146,60 +146,66 @@ export default function AnalysisPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score < 20) return "text-green-600";
-    if (score < 40) return "text-yellow-600";
-    if (score < 60) return "text-orange-600";
-    return "text-red-600";
+    if (score < 20) return "text-emerald-700";
+    if (score < 40) return "text-amber-700";
+    if (score < 60) return "text-orange-700";
+    return "text-red-700";
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score < 20) return "bg-green-50 border-green-200";
-    if (score < 40) return "bg-yellow-50 border-yellow-200";
-    if (score < 60) return "bg-orange-50 border-orange-200";
-    return "bg-red-50 border-red-200";
+    if (score < 20) return "bg-emerald-50 border-emerald-500";
+    if (score < 40) return "bg-amber-50 border-amber-500";
+    if (score < 60) return "bg-orange-50 border-orange-500";
+    return "bg-red-50 border-red-500";
+  };
+
+  const getScoreCategory = (score: number) => {
+    if (score < 20) return "stable";
+    if (score < 40) return "moderate_drift";
+    return "significant_drift";
   };
 
   const getZScoreColor = (z: number) => {
     const abs = Math.abs(z);
     if (abs < 1) return "text-gray-600";
-    if (abs < 2) return "text-yellow-600";
+    if (abs < 2) return "text-amber-600";
     return "text-red-600";
   };
 
   const getZScoreBar = (z: number) => {
     const abs = Math.abs(z);
     const width = Math.min(abs * 33, 100);
-    const color = abs < 1 ? "bg-gray-400" : abs < 2 ? "bg-yellow-500" : "bg-red-500";
+    const color = abs < 1 ? "bg-gray-400" : abs < 2 ? "bg-gradient-to-r from-amber-400 to-amber-600" : "bg-gradient-to-r from-red-400 to-red-600";
     return { width: `${width}%`, color };
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-8">
-        <Card className="p-8 max-w-lg w-full shadow-xl">
-          <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-violet-50/30 via-blue-50/20 to-emerald-50/10 flex items-center justify-center p-8">
+        <Card className="p-8 max-w-lg w-full shadow-2xl glass-card bg-white/80 border-0">
+          <div className="text-center animate-fadeIn">
             <div className="relative mb-6">
-              <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto" />
+              <Loader2 className="h-16 w-16 animate-spin text-purple-600 mx-auto" />
               <Activity className="h-8 w-8 text-blue-400 mx-auto absolute top-4 left-1/2 -ml-4 animate-pulse" />
             </div>
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">Analyzing Your Sleep Data</h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <h2 className="heading-card text-gray-900 mb-2">Analyzing Your Sleep Data</h2>
+            <p className="text-sm text-gray-600 mb-6 font-inter">
               Running multi-agent clinical evidence synthesis...
             </p>
             <div className="space-y-2 mb-6">
               <Progress value={reportProgress} className="h-2" />
-              <p className="text-xs text-gray-500 font-medium">{reportProgress}% complete</p>
+              <p className="text-xs text-gray-500 font-medium font-space-mono">{reportProgress}% complete</p>
             </div>
-            <div className="text-left bg-blue-50 rounded-lg p-4 text-xs text-gray-600 space-y-1">
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-blue-600" />
+            <div className="text-left glass-card bg-gradient-to-r from-purple-50/80 to-blue-50/80 rounded-lg p-4 text-xs text-gray-600 space-y-1 border border-purple-200/30">
+              <p className="flex items-center gap-2 font-inter">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                 Statistical analysis (z-scores, SHDI)
               </p>
-              <p className="flex items-center gap-2">
-                <CheckCircle2 className="h-3 w-3 text-blue-600" />
+              <p className="flex items-center gap-2 font-inter">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                 Phenotype classification
               </p>
-              <p className="flex items-center gap-2 text-blue-600 font-medium">
+              <p className="flex items-center gap-2 text-purple-600 font-medium font-inter">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Multi-agent evidence synthesis
               </p>
@@ -212,14 +218,14 @@ export default function AnalysisPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-violet-50/30 via-blue-50/20 to-emerald-50/10 p-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-8 border-red-200 bg-red-50">
+          <Card className="p-8 border-2 border-red-500 bg-white shadow-2xl animate-fadeIn">
             <AlertTriangle className="h-12 w-12 text-red-600 mb-4" />
-            <h2 className="text-xl font-semibold text-red-900 mb-2">Analysis Error</h2>
-            <p className="text-red-700 mb-4">{error}</p>
+            <h2 className="heading-card text-red-900 mb-2">Analysis Error</h2>
+            <p className="text-red-700 mb-4 font-inter">{error}</p>
             <Link href="/">
-              <Button variant="outline">
+              <Button variant="outline" className="font-inter">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Upload
               </Button>
@@ -231,135 +237,193 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50/30 via-blue-50/20 to-emerald-50/10 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                New Analysis
-              </Button>
-            </Link>
+        {/* Glass header card */}
+        <div className="mb-8 p-6 rounded-2xl glass-card bg-white/60 border border-white/30 shadow-lg animate-fadeIn">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Sleep Health Analysis</h1>
-              <p className="text-sm text-gray-500 mt-1">Multi-agent clinical evidence synthesis</p>
+              <h1 className="heading-section text-gray-900 mb-2">
+                Sleep Analysis Results
+              </h1>
+              <p className="text-sm font-inter text-gray-600">
+                Analysis ID: <span className="font-space-mono">{id}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href="/">
+                <Button variant="outline" size="sm" className="font-inter">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  New Analysis
+                </Button>
+              </Link>
+              <Button
+                onClick={handleExportPDF}
+                disabled={exportingPDF}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-inter"
+              >
+                {exportingPDF ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Export PDF
+              </Button>
             </div>
           </div>
-          <Button
-            onClick={handleExportPDF}
-            disabled={exportingPDF}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {exportingPDF ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            Export Clinical PDF
-          </Button>
         </div>
 
-        {/* SHDI Score Hero Card */}
+        {/* Bento grid layout */}
         {analysis && (
-          <Card className={`p-8 mb-6 border-2 ${getScoreBgColor(analysis.shdi.score)}`}>
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* SHDI Score */}
-              <div className="text-center md:border-r border-gray-200">
-                <p className="text-sm font-medium text-gray-600 mb-2 uppercase tracking-wide">SHDI Score</p>
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Activity className={`h-8 w-8 ${getScoreColor(analysis.shdi.score)}`} />
-                  <p className={`text-6xl font-bold ${getScoreColor(analysis.shdi.score)}`}>
-                    {analysis.shdi.score.toFixed(1)}
-                  </p>
-                  <span className="text-2xl text-gray-400 font-medium">/100</span>
-                </div>
-                <Badge
-                  variant={analysis.shdi.category === "stable" ? "default" : "destructive"}
-                  className="text-xs"
-                >
-                  {analysis.shdi.category.replace("_", " ").toUpperCase()}
-                </Badge>
-                <p className="text-xs text-gray-500 mt-2">{(analysis.shdi.confidence * 100).toFixed(0)}% confidence</p>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
+            {/* SHDI Score Card - Solid design (critical medical data) - spans 2 cols */}
+            <div className="lg:col-span-2">
+              <Card className={`border-2 shadow-2xl bg-white p-6 ${getScoreBgColor(analysis.shdi.score).split(' ')[1]}`}>
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="heading-card text-gray-900 mb-2">
+                      Sleep Health Deviation Index
+                    </h2>
+                    <p className="text-sm font-inter text-gray-600">
+                      Statistical composite of sleep pattern stability
+                    </p>
+                  </div>
 
+                  {/* Score badge with strong contrast */}
+                  <div className={`px-6 py-3 rounded-xl ${getScoreBgColor(analysis.shdi.score)}`}>
+                    <div className={`text-5xl font-space-mono font-bold ${getScoreColor(analysis.shdi.score)}`}>
+                      {analysis.shdi.score.toFixed(1)}
+                    </div>
+                    <div className="text-xs font-inter text-gray-600 text-center mt-1">/ 100</div>
+                  </div>
+                </div>
+
+                {/* Progress bar with gradient */}
+                <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden mb-4">
+                  <div
+                    className={`absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ${
+                      getScoreCategory(analysis.shdi.score) === 'stable'
+                        ? 'bg-gradient-to-r from-emerald-400 to-emerald-600'
+                        : getScoreCategory(analysis.shdi.score) === 'moderate_drift'
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-600'
+                        : 'bg-gradient-to-r from-red-400 to-red-600'
+                    }`}
+                    style={{ width: `${analysis.shdi.score}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className={`inline-block px-4 py-2 rounded-full font-inter font-semibold ${
+                    getScoreCategory(analysis.shdi.score) === 'stable'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : getScoreCategory(analysis.shdi.score) === 'moderate_drift'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {analysis.shdi.category.replace("_", " ").toUpperCase()}
+                  </span>
+                  <span className="text-sm font-inter text-gray-600">
+                    {(analysis.shdi.confidence * 100).toFixed(0)}% confidence
+                  </span>
+                </div>
+              </Card>
+            </div>
+
+            {/* Quick Stats - Glass cards */}
+            <div className="space-y-6">
               {/* Sleep Phenotype */}
-              <div className="text-center md:border-r border-gray-200">
-                <p className="text-sm font-medium text-gray-600 mb-2 uppercase tracking-wide">Sleep Pattern</p>
-                <Brain className="h-12 w-12 text-purple-600 mx-auto mb-2" />
-                <p className="text-lg font-semibold text-gray-900 capitalize">
+              <Card className="p-6 glass-card bg-gradient-to-br from-white/70 to-white/40 border-0 shadow-xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                    <Brain className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-playfair font-bold text-lg text-gray-900">
+                    Sleep Pattern
+                  </h3>
+                </div>
+                <p className="text-base font-inter font-semibold text-gray-900 capitalize mb-2">
                   {analysis.phenotype.primary_pattern.replace(/_/g, " ")}
                 </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Confidence: {(analysis.phenotype.confidence * 100).toFixed(0)}%
+                <p className="text-sm text-gray-600 font-inter mb-3">
+                  Confidence: <span className="font-space-mono">{(analysis.phenotype.confidence * 100).toFixed(0)}%</span>
                 </p>
                 {analysis.phenotype.associated_domains && (
-                  <div className="flex flex-wrap gap-1 justify-center mt-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {analysis.phenotype.associated_domains.map((domain: string) => (
-                      <Badge key={domain} variant="outline" className="text-xs">
+                      <Badge key={domain} variant="outline" className="text-xs font-inter">
                         {domain}
                       </Badge>
                     ))}
                   </div>
                 )}
-              </div>
+              </Card>
 
-              {/* Key Metrics */}
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-600 mb-2 uppercase tracking-wide">Baseline Health</p>
-                <div className="space-y-2 text-sm">
+              {/* Baseline Stats */}
+              <Card className="p-6 glass-card bg-gradient-to-br from-white/70 to-white/40 border-0 shadow-xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                    <Moon className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="font-playfair font-bold text-lg text-gray-900">
+                    Baseline
+                  </h3>
+                </div>
+                <div className="space-y-2 text-sm font-inter">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Sleep Time:</span>
-                    <span className="font-semibold">{typeof analysis.baseline?.mean_total_sleep === 'number' ? analysis.baseline.mean_total_sleep.toFixed(1) : '462'} min</span>
+                    <span className="font-semibold font-space-mono">{typeof analysis.baseline?.mean_total_sleep === 'number' ? analysis.baseline.mean_total_sleep.toFixed(1) : '462'} min</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Efficiency:</span>
-                    <span className="font-semibold">{typeof analysis.baseline?.mean_efficiency === 'number' ? analysis.baseline.mean_efficiency.toFixed(1) : '90.2'}%</span>
+                    <span className="font-semibold font-space-mono">{typeof analysis.baseline?.mean_efficiency === 'number' ? analysis.baseline.mean_efficiency.toFixed(1) : '90.2'}%</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Deep Sleep:</span>
-                    <span className="font-semibold">{typeof analysis.baseline?.mean_deep === 'number' ? analysis.baseline.mean_deep.toFixed(1) : '106'} min</span>
+                    <span className="font-semibold font-space-mono">{typeof analysis.baseline?.mean_deep === 'number' ? analysis.baseline.mean_deep.toFixed(1) : '106'} min</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Awakenings:</span>
-                    <span className="font-semibold">{typeof analysis.baseline?.mean_awakenings === 'number' ? analysis.baseline.mean_awakenings.toFixed(1) : '2.6'}</span>
+                    <span className="font-semibold font-space-mono">{typeof analysis.baseline?.mean_awakenings === 'number' ? analysis.baseline.mean_awakenings.toFixed(1) : '2.6'}</span>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
-          </Card>
+          </div>
         )}
 
-        {/* Z-Scores Deviation Card */}
+        {/* Z-Scores Deviation Card - Solid (critical data) */}
         {analysis?.z_scores && (
-          <Card className="p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
-              <h2 className="text-xl font-semibold">Statistical Deviations (Z-Scores)</h2>
+          <Card className="p-6 mb-6 shadow-xl bg-white animate-fadeIn" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="heading-card text-gray-900">Statistical Deviations (Z-Scores)</h2>
+                <p className="text-sm text-gray-600 font-inter">
+                  Recent 7 days vs. your 30-day baseline. Values beyond ±2σ indicate significant deviation.
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Recent 7 days compared to your 30-day baseline. Values beyond ±2σ indicate significant deviation.
-            </p>
             <div className="grid md:grid-cols-2 gap-4">
               {Object.entries(analysis.z_scores).map(([key, value]: [string, any]) => {
                 const z = parseFloat(value);
                 const bar = getZScoreBar(z);
                 return (
-                  <div key={key} className="bg-gray-50 rounded-lg p-4">
+                  <div key={key} className="glass-card bg-gradient-to-br from-gray-50/80 to-white/60 rounded-lg p-4 border border-gray-200/30">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium capitalize">{key.replace("_", " ")}</span>
-                      <span className={`text-lg font-bold ${getZScoreColor(z)}`}>
+                      <span className="text-sm font-medium font-inter capitalize">{key.replace("_", " ")}</span>
+                      <span className={`text-lg font-bold font-space-mono ${getZScoreColor(z)}`}>
                         {z > 0 ? "+" : ""}{z.toFixed(2)}σ
                       </span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div
-                        className={`h-2 rounded-full transition-all ${bar.color}`}
+                        className={`h-2 rounded-full transition-all duration-1000 ${bar.color}`}
                         style={{ width: bar.width }}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 mt-2 font-inter">
                       {Math.abs(z) < 1 ? "Normal variation" :
                        Math.abs(z) < 2 ? "Moderate deviation" :
                        "Significant deviation"}
@@ -371,20 +435,116 @@ export default function AnalysisPage() {
           </Card>
         )}
 
-        {/* Patient Report */}
+        {/* Multi-API Pipeline (Greylock Prize) - Glass design */}
+        {reports && reports.usage && (
+          <Card className="relative overflow-hidden border-0 shadow-xl glass-card bg-gradient-to-br from-white/70 to-white/30 mb-6 animate-fadeIn" style={{ animationDelay: '0.3s' }}>
+            {/* Glowing border effect */}
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-emerald-500/20 blur-sm" />
+
+            <div className="relative p-6">
+              <h3 className="text-2xl font-playfair font-bold text-gray-900 mb-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                Multi-API Intelligence Pipeline
+                <span className="text-xs font-inter font-normal text-purple-700 ml-auto px-3 py-1 bg-purple-100/80 rounded-full glass-card">
+                  Greylock 5+ API Agent
+                </span>
+              </h3>
+
+              {/* API services with enhanced visual design */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="group relative p-4 rounded-xl glass-card bg-gradient-to-br from-purple-50/80 to-transparent hover:from-purple-100/80 transition-all duration-300 card-hover">
+                  <div className="flex items-start gap-3">
+                    <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse-glow" />
+                    <div>
+                      <div className="font-semibold text-gray-900 font-inter">Anthropic Claude</div>
+                      <div className="text-sm text-gray-600 font-space-mono">{reports.usage.anthropicTurns} turns</div>
+                    </div>
+                  </div>
+                </div>
+
+                {reports.usage.openaiO1Used && (
+                  <div className="group relative p-4 rounded-xl glass-card bg-gradient-to-br from-emerald-50/80 to-transparent hover:from-emerald-100/80 transition-all duration-300 card-hover">
+                    <div className="flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 animate-pulse-glow" />
+                      <div>
+                        <div className="font-semibold text-gray-900 font-inter">OpenAI o1</div>
+                        <div className="text-sm text-gray-600 font-inter">Medical reasoning</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {reports.usage.pubmedQueries > 0 && (
+                  <div className="group relative p-4 rounded-xl glass-card bg-gradient-to-br from-blue-50/80 to-transparent hover:from-blue-100/80 transition-all duration-300 card-hover">
+                    <div className="flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 animate-pulse-glow" />
+                      <div>
+                        <div className="font-semibold text-gray-900 font-inter">PubMed</div>
+                        <div className="text-sm text-gray-600 font-space-mono">
+                          {reports.usage.pubmedQueries} queries
+                          {reports.usage.pubmedErrors > 0 && ` (${reports.usage.pubmedErrors} refined)`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {reports.usage.brightDataUsed !== 'none' && (
+                  <div className="group relative p-4 rounded-xl glass-card bg-gradient-to-br from-amber-50/80 to-transparent hover:from-amber-100/80 transition-all duration-300 card-hover">
+                    <div className="flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 animate-pulse-glow" />
+                      <div>
+                        <div className="font-semibold text-gray-900 font-inter">BrightData</div>
+                        <div className="text-sm text-gray-600 font-inter">
+                          Guidelines ({reports.usage.brightDataUsed})
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {reports.usage.perplexityCalls > 0 && (
+                  <div className="group relative p-4 rounded-xl glass-card bg-gradient-to-br from-teal-50/80 to-transparent hover:from-teal-100/80 transition-all duration-300 card-hover">
+                    <div className="flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 animate-pulse-glow" />
+                      <div>
+                        <div className="font-semibold text-gray-900 font-inter">Perplexity Sonar</div>
+                        <div className="text-sm text-gray-600 font-space-mono">{reports.usage.perplexityCalls} consensus</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Feedback loop explanation with glass accent */}
+              <div className="mt-4 p-4 rounded-lg glass-card bg-gradient-to-r from-blue-50/80 to-purple-50/80 border border-blue-200/30">
+                <strong className="font-inter text-blue-900">Feedback loop:</strong>
+                <span className="font-inter text-sm text-blue-800 ml-2">Claude autonomously chooses when to call each API and refines queries based on evidence consistency assessment.</span>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Patient Report - Solid design */}
         {reports?.patient_report && (
-          <Card className="p-8 mb-6 border-l-4 border-green-500">
+          <Card className="p-8 mb-6 border-l-4 border-emerald-500 shadow-xl bg-white animate-fadeIn" style={{ animationDelay: '0.4s' }}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <Heart className="h-6 w-6 text-green-600" />
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                  <Heart className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-2xl font-semibold">Your Sleep Health Report</h2>
-                  <p className="text-sm text-gray-600">Easy-to-understand findings and recommendations</p>
+                  <h2 className="heading-card text-gray-900">Your Sleep Health Report</h2>
+                  <p className="text-sm text-gray-600 font-inter">Easy-to-understand findings and recommendations</p>
                 </div>
               </div>
-              <Badge className="bg-green-100 text-green-800">Patient-Friendly</Badge>
+              <Badge className="bg-emerald-100 text-emerald-800 font-inter">Patient-Friendly</Badge>
             </div>
-            <div className="prose prose-green max-w-none prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-td:border prose-td:px-2 prose-td:py-1">
+            <div className="prose prose-emerald max-w-none prose-headings:font-playfair prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-p:font-inter prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:font-inter prose-ul:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-th:font-inter prose-td:border prose-td:px-2 prose-td:py-1 prose-td:font-inter">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {reports.patient_report}
               </ReactMarkdown>
@@ -392,20 +552,22 @@ export default function AnalysisPage() {
           </Card>
         )}
 
-        {/* Clinical Report */}
+        {/* Clinical Report - Solid design */}
         {reports?.clinical_report && (
-          <Card className="p-8 border-l-4 border-blue-500">
+          <Card className="p-8 border-l-4 border-blue-500 shadow-xl bg-white animate-fadeIn" style={{ animationDelay: '0.5s' }}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <Zap className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <Zap className="h-6 w-6 text-white" />
+                </div>
                 <div>
-                  <h2 className="text-2xl font-semibold">Clinical Evidence Summary</h2>
-                  <p className="text-sm text-gray-600">Evidence-graded findings for healthcare providers</p>
+                  <h2 className="heading-card text-gray-900">Clinical Evidence Summary</h2>
+                  <p className="text-sm text-gray-600 font-inter">Evidence-graded findings for healthcare providers</p>
                 </div>
               </div>
-              <Badge variant="outline">GRADE Methodology</Badge>
+              <Badge variant="outline" className="font-inter">GRADE Methodology</Badge>
             </div>
-            <div className="prose prose-blue max-w-none text-sm prose-headings:text-gray-900 prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:font-semibold prose-table:text-xs prose-p:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-td:border prose-td:px-2 prose-td:py-1">
+            <div className="prose prose-blue max-w-none text-sm prose-headings:font-playfair prose-headings:text-gray-900 prose-h2:text-lg prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:font-semibold prose-table:text-xs prose-p:font-inter prose-p:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-th:font-inter prose-td:border prose-td:px-2 prose-td:py-1 prose-td:font-inter">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {reports.clinical_report}
               </ReactMarkdown>
@@ -413,13 +575,13 @@ export default function AnalysisPage() {
           </Card>
         )}
 
-        {/* Footer Disclaimer */}
-        <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
+        {/* Footer Disclaimer - Glass accent */}
+        <div className="mt-8 p-6 glass-card bg-amber-50/80 border border-amber-200/40 rounded-lg animate-fadeIn" style={{ animationDelay: '0.6s' }}>
           <div className="flex gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-yellow-900">
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-900 font-inter">
               <p className="font-semibold mb-1">Important Disclaimer</p>
-              <p className="text-yellow-800">
+              <p className="text-amber-800">
                 This analysis is for informational purposes only and does not constitute medical advice, diagnosis, or treatment.
                 Consumer wearables provide estimates, not clinical-grade measurements. Always consult healthcare professionals
                 for medical decisions.

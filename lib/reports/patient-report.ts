@@ -13,6 +13,10 @@ export function generatePatientReport(
 
   return `# Your Sleep Health Insights
 
+## A Note Before We Begin
+
+Taking an interest in your sleep patterns is a positive step toward understanding your health. This report is designed to help you and your healthcare provider have informed conversations — not to diagnose or alarm.
+
 ## What We Observed
 
 Over the past **${analysis.days_analyzed} days**, we analyzed your sleep patterns using data from your wearable device.
@@ -20,6 +24,12 @@ Over the past **${analysis.days_analyzed} days**, we analyzed your sleep pattern
 ${shdi.category === 'stable'
   ? `✅ **Good news!** Your sleep patterns are stable and consistent with your personal baseline.`
   : `📊 We detected some changes in your sleep patterns compared to your usual baseline.`
+}
+
+${
+  shdi.category !== 'stable'
+    ? `\n**It's important to know:** Many people experience temporary changes in sleep patterns. Our goal is to help you understand patterns over time, not to cause worry. Sleep naturally varies, and these observations are meant to support conversations with your provider.\n`
+    : ''
 }
 
 ${phenotype.primary_pattern === 'fragmentation_dominant' && Math.abs(z_scores.awakenings) > 1

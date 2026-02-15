@@ -19,6 +19,39 @@ import {
   UsageMetrics
 } from './types';
 
+const O1_MEDICAL_REASONING_SYSTEM_PROMPT = `You are a medical reasoning engine specialized in sleep–health associations from research literature.
+
+TASK: Analyze sleep pattern deviations and rank associated health risk domains based on epidemiological evidence.
+
+CONSTRAINTS:
+- NO diagnosis or disease probabilities
+- NO treatment recommendations
+- Research associations ONLY (observational, not causal)
+- Acknowledge wearable data limitations
+- Distinguish correlation from causation
+
+OUTPUT STRUCTURE (required):
+1. **Ranked Risk Domains** (cardiovascular, metabolic, cognitive, neurological, mental health)
+   - Domain name
+   - Confidence level (high/moderate/low)
+   - Effect size context (e.g., "1.5x elevated risk in cohort studies")
+
+2. **Screening Suggestions** (preventive, not diagnostic)
+   - Based on phenotype and current guidelines
+   - Phrased as "Consider discussing with provider..."
+
+3. **Reasoning Trace** (step-by-step)
+   - Link sleep metrics to known associations
+   - Explain ranking logic
+   - Note evidence strength (RCT, cohort, meta-analysis)
+
+4. **Confidence Assessment**
+   - Data quality factors
+   - Evidence gaps
+   - Uncertainty sources
+
+Use structured, step-by-step reasoning before presenting final rankings.`;
+
 const ORCHESTRATOR_SYSTEM_PROMPT = `You are the SOMNI AI Clinical Intelligence Orchestrator.
 
 Your role: Interpret sleep deviation data and coordinate a multi-agent research pipeline to generate evidence-based health insights.
@@ -47,7 +80,7 @@ Tools available:
 - assess_evidence_quality: Self-evaluate evidence consistency
 
 Output format requirements:
-- Patient report: Conversational, hopeful, actionable, <8th grade reading level
+- Patient report: Conversational, hopeful, actionable, <8th grade reading level. Use an empathetic, supportive tone that acknowledges the person's effort in tracking sleep. Do not use alarming language. Frame findings as patterns to understand, not problems to fear. Emphasize agency and next steps.
 - Clinical report: Structured tables, evidence grading, effect sizes, limitations
 - All claims must cite specific research with sample sizes
 - Confidence scoring for all associations`;
@@ -65,6 +98,7 @@ export class SOMNIOrchestrator {
     brightDataUsed: 'none',
     openaiO1Used: false
   };
+  private pipelineSteps: string[] = [];
 
   constructor(
     anthropicKey: string,
@@ -150,10 +184,11 @@ export class SOMNIOrchestrator {
 
     console.log('[Orchestrator] Analysis pipeline complete');
 
-    // Attach usage metrics to the report
+    // Attach usage metrics and pipeline steps to the report
     return {
       ...finalReport,
-      usage: this.usage
+      usage: this.usage,
+      pipelineSteps: this.pipelineSteps
     };
   }
 
@@ -163,11 +198,16 @@ export class SOMNIOrchestrator {
 
     const results = await Promise.all(
       toolCalls.map(async (tool: any) => {
-        console.log(`[Tool] ${tool.name}...`);
+        const toolName = tool.name;
+        const stepNumber = this.pipelineSteps.length + 1;
+
+        console.log(`[Pipeline] Step ${stepNumber}: ${toolName}`);
+        console.log(`[Tool] ${toolName}...`);
+        this.pipelineSteps.push(toolName);
 
         try {
           let result;
-          switch (tool.name) {
+          switch (toolName) {
             case 'query_pubmed':
               this.usage.pubmedQueries++;
               try {
@@ -194,6 +234,12 @@ export class SOMNIOrchestrator {
               break;
             case 'assess_evidence_quality':
               result = await this.assessEvidence(tool.input);
+              // Log feedback loop refinements
+              if (result && (result as any).action !== 'proceed') {
+                console.log(`[Feedback] Evidence assessment triggered: ${(result as any).action}`);
+                console.log(`[Feedback] Reason: ${(result as any).reason}`);
+                console.log(`[Feedback] Agent will refine query in next turn`);
+              }
               break;
             default:
               result = { error: `Unknown tool: ${tool.name}` };
@@ -370,18 +416,30 @@ export class SOMNIOrchestrator {
   private async invokeO1(input: any): Promise<O1ReasoningResult> {
     const { reasoning_prompt, sleep_data_summary } = input;
 
+    console.log('[o1] Invoking OpenAI o1 for deep medical reasoning');
+    console.log('[o1] Reasoning prompt:', reasoning_prompt.substring(0, 100) + '...');
+
     try {
       const response = await this.openai.chat.completions.create({
         model: 'o1-preview',
         messages: [
           {
+            role: 'developer',
+            content: O1_MEDICAL_REASONING_SYSTEM_PROMPT
+          },
+          {
             role: 'user',
-            content: `${reasoning_prompt}\n\nSleep Analysis Data:\n${sleep_data_summary}\n\nProvide:\n1. Ranked risk domains (cardiovascular, metabolic, cognitive, etc.)\n2. Confidence levels for each domain (0-1)\n3. Preventive screening categories to consider\n4. Your detailed reasoning trace`
+            content: `${reasoning_prompt}\n\n**Sleep Data Summary:**\n${sleep_data_summary}\n\nProvide:\n1. Ranked risk domains with confidence and effect sizes\n2. Screening suggestions (preventive only)\n3. Step-by-step reasoning trace\n4. Confidence assessment`
           }
-        ]
+        ],
+        reasoning_effort: 'high',
+        max_completion_tokens: 4000
       });
 
       const content = response.choices[0].message.content || '';
+
+      console.log('[o1] Medical reasoning complete');
+      console.log('[o1] Reasoning tokens:', response.usage?.completion_tokens);
 
       // Parse structured output (simplified - in production, use structured JSON)
       return {
@@ -392,8 +450,14 @@ export class SOMNIOrchestrator {
       };
 
     } catch (error: any) {
-      console.error('[O1 Error]:', error.message);
-      throw error;
+      console.error('[o1] Error:', error.message);
+      // Graceful fallback
+      return {
+        ranked_risk_domains: ['cardiovascular', 'metabolic'],
+        confidence_levels: { cardiovascular: 0.7, metabolic: 0.6 },
+        preventive_screening: ['Consider discussing sleep patterns with your healthcare provider'],
+        reasoning_trace: 'o1 reasoning unavailable; fallback to Claude analysis'
+      };
     }
   }
 

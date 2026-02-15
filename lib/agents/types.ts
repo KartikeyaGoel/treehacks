@@ -129,6 +129,7 @@ export interface DualReport {
   clinical_report: string;
   evidence: ResearchEvidence[];
   usage?: UsageMetrics;
+  pipelineSteps?: string[];
 }
 
 export interface AgentMessage {
