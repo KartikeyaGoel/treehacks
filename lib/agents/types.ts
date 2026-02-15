@@ -115,10 +115,20 @@ export interface ResearchEvidence {
   health_domain: string;
 }
 
+export interface UsageMetrics {
+  anthropicTurns: number;
+  perplexityCalls: number;
+  pubmedQueries: number;
+  pubmedErrors: number;
+  brightDataUsed: 'mock' | 'real' | 'none';
+  openaiO1Used: boolean;
+}
+
 export interface DualReport {
   patient_report: string;
   clinical_report: string;
   evidence: ResearchEvidence[];
+  usage?: UsageMetrics;
 }
 
 export interface AgentMessage {

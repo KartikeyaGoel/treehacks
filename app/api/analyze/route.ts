@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { appendFileSync } from 'fs';
 import { join } from 'path';
+import { SleepAnalyzer, parseAppleHealthXML, parseFitbitCSV, parseOuraCSV, validateSleepData } from '@/lib/sleep-analysis';
 
 const DEBUG_LOG = join(process.cwd(), '.cursor', 'debug.log');
 function debugLog(payload: object) {
@@ -32,11 +33,77 @@ export async function POST(req: NextRequest) {
 
     console.log('[API] Received file:', file.name, file.type, file.size);
 
-    // Forward to Python FastAPI backend
+    const pythonUrl = process.env.PYTHON_API_URL;
+
+    // If PYTHON_API_URL is not set, use TypeScript pipeline for Vercel deployment
+    if (!pythonUrl) {
+      console.log('[API] Using TypeScript analysis pipeline (Python backend not configured)');
+
+      try {
+        // Read file content
+        const fileContent = await file.text();
+
+        // Determine file type and parse accordingly
+        let sleepRecords;
+        if (file.name.endsWith('.xml')) {
+          sleepRecords = parseAppleHealthXML(fileContent);
+        } else if (file.name.endsWith('.csv')) {
+          // Try Fitbit format first, then Oura if it fails
+          try {
+            sleepRecords = parseFitbitCSV(fileContent);
+          } catch {
+            sleepRecords = parseOuraCSV(fileContent);
+          }
+        } else {
+          return NextResponse.json(
+            { detail: 'Unsupported file format. Please upload .xml (Apple Health) or .csv (Fitbit/Oura)' },
+            { status: 400 }
+          );
+        }
+
+        // Validate data
+        const validation = validateSleepData(sleepRecords);
+        if (!validation.valid) {
+          return NextResponse.json(
+            { detail: validation.error_message },
+            { status: 422 }
+          );
+        }
+
+        // Run analysis
+        const analyzer = new SleepAnalyzer();
+        const analysisResult = analyzer.analyze(sleepRecords);
+
+        // Generate unique analysis ID
+        const analysisId = nanoid();
+
+        // Store result in cache
+        if (!global.analysisCache) {
+          global.analysisCache = {};
+        }
+        global.analysisCache[analysisId] = {
+          analysis: analysisResult,
+          timestamp: new Date().toISOString()
+        };
+
+        console.log('[API] Analysis complete (TypeScript), SHDI:', analysisResult.shdi.score);
+        console.log('[API] Cached analysis with ID:', analysisId);
+
+        return NextResponse.json({ analysisId });
+
+      } catch (parseError: any) {
+        console.error('[API] TypeScript analysis error:', parseError);
+        return NextResponse.json(
+          { detail: `Analysis failed: ${parseError.message}` },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Otherwise, forward to Python FastAPI backend
     const pythonFormData = new FormData();
     pythonFormData.append('file', file);
 
-    const pythonUrl = process.env.PYTHON_API_URL || 'http://localhost:8000';
     const fullAnalyzeUrl = `${pythonUrl}/api/analyze`;
     console.log('[API] Forwarding to Python backend:', fullAnalyzeUrl);
 

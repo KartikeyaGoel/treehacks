@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     let patientReport: string;
     let clinicalReport: string;
     let evidence: any[] = [];
+    let usage: any = undefined;
 
     if (hasCoreKeys) {
       console.log('[Reports] Using full multi-agent orchestration');
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       patientReport = reports.patient_report;
       clinicalReport = reports.clinical_report;
       evidence = reports.evidence;
+      usage = reports.usage;
 
     } else {
       console.log('[Reports] Using direct report generation (core API keys not configured)');
@@ -81,7 +83,8 @@ export async function POST(req: NextRequest) {
       reports: {
         patient: patientReport,
         clinical: clinicalReport,
-        evidence
+        evidence,
+        usage
       }
     };
 
@@ -90,7 +93,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       patient_report: patientReport,
       clinical_report: clinicalReport,
-      evidence
+      evidence,
+      usage
     });
 
   } catch (error: any) {

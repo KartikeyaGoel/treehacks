@@ -15,7 +15,8 @@ import {
   GuidelineData,
   ConsensusResult,
   ResearchEvidence,
-  AgentMessage
+  AgentMessage,
+  UsageMetrics
 } from './types';
 
 const ORCHESTRATOR_SYSTEM_PROMPT = `You are the SOMNI AI Clinical Intelligence Orchestrator.
@@ -56,6 +57,14 @@ export class SOMNIOrchestrator {
   private openai: OpenAI;
   private conversationHistory: AgentMessage[] = [];
   private maxTurns = 15;
+  private usage: UsageMetrics = {
+    anthropicTurns: 0,
+    perplexityCalls: 0,
+    pubmedQueries: 0,
+    pubmedErrors: 0,
+    brightDataUsed: 'none',
+    openaiO1Used: false
+  };
 
   constructor(
     anthropicKey: string,
@@ -96,6 +105,9 @@ export class SOMNIOrchestrator {
         ]
       });
 
+      // Track Anthropic API usage
+      this.usage.anthropicTurns++;
+
       // Handle tool calls
       if (response.stop_reason === 'tool_use') {
         console.log('[Orchestrator] Executing tool calls...');
@@ -127,8 +139,22 @@ export class SOMNIOrchestrator {
       throw new Error('Report generation exceeded maximum turns');
     }
 
+    // Log usage summary
+    console.log(
+      `[Orchestrator] Usage: Anthropic ${this.usage.anthropicTurns} turns, ` +
+      `Perplexity ${this.usage.perplexityCalls}, ` +
+      `PubMed ${this.usage.pubmedQueries} (${this.usage.pubmedErrors} errors), ` +
+      `Bright Data ${this.usage.brightDataUsed}, ` +
+      `OpenAI o1 ${this.usage.openaiO1Used ? 'yes' : 'no'}`
+    );
+
     console.log('[Orchestrator] Analysis pipeline complete');
-    return finalReport;
+
+    // Attach usage metrics to the report
+    return {
+      ...finalReport,
+      usage: this.usage
+    };
   }
 
   private async executeTools(content: any[]): Promise<any[]> {
@@ -143,15 +169,27 @@ export class SOMNIOrchestrator {
           let result;
           switch (tool.name) {
             case 'query_pubmed':
-              result = await this.queryPubMed(tool.input);
+              this.usage.pubmedQueries++;
+              try {
+                result = await this.queryPubMed(tool.input);
+                if (Array.isArray(result) && result.length === 0) {
+                  this.usage.pubmedErrors++;
+                }
+              } catch (err) {
+                this.usage.pubmedErrors++;
+                throw err;
+              }
               break;
             case 'invoke_o1_reasoning':
+              this.usage.openaiO1Used = true;
               result = await this.invokeO1(tool.input);
               break;
             case 'scrape_guidelines':
+              // scrapeBrightData will set brightDataUsed internally
               result = await this.scrapeBrightData(tool.input);
               break;
             case 'sonar_consensus':
+              this.usage.perplexityCalls++;
               result = await this.queryPerplexity(tool.input);
               break;
             case 'assess_evidence_quality':
@@ -365,6 +403,7 @@ export class SOMNIOrchestrator {
     // Free tier: no API key — use built-in mock CDC/AHA-style guideline data
     if (!this.brightdataKey?.trim()) {
       console.log('[BrightData] No API key (free tier); using mock guideline data');
+      this.usage.brightDataUsed = 'mock';
       return this.getMockGuidelineData(topics);
     }
 
@@ -389,6 +428,9 @@ export class SOMNIOrchestrator {
 
       const data = await response.json();
 
+      // Track real API usage
+      this.usage.brightDataUsed = 'real';
+
       // Transform to structured format
       return {
         statistics: data.statistics || [],
@@ -399,6 +441,7 @@ export class SOMNIOrchestrator {
     } catch (error: any) {
       console.error('[BrightData Error]:', error.message);
       // Return mock data for demo / fallback
+      this.usage.brightDataUsed = 'mock';
       return this.getMockGuidelineData(topics);
     }
   }
