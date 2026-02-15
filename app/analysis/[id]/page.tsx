@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   Zap
 } from "lucide-react";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function AnalysisPage() {
   const { id } = useParams();
@@ -29,11 +31,15 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [reportProgress, setReportProgress] = useState(0);
   const [exportingPDF, setExportingPDF] = useState(false);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (id) {
       loadAnalysisAndReports();
     }
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    };
   }, [id]);
 
   const loadAnalysisAndReports = async () => {
@@ -43,11 +49,21 @@ export default function AnalysisPage() {
     try {
       setReportProgress(30);
 
+      // Simulate progress 30 → 90 while waiting (every 2s +5%, cap 90)
+      progressIntervalRef.current = setInterval(() => {
+        setReportProgress((p) => (p < 90 ? p + 5 : p));
+      }, 2000);
+
       const response = await fetch("/api/generate-reports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ analysisId: id }),
       });
+
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -92,6 +108,10 @@ export default function AnalysisPage() {
     } catch (err: any) {
       console.error("Error loading reports:", err);
       setError(err.message);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
     } finally {
       setLoading(false);
     }
@@ -272,7 +292,7 @@ export default function AnalysisPage() {
                   {analysis.phenotype.primary_pattern.replace(/_/g, " ")}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Confidence: {analysis.phenotype.confidence.toFixed(0)}%
+                  Confidence: {(analysis.phenotype.confidence * 100).toFixed(0)}%
                 </p>
                 {analysis.phenotype.associated_domains && (
                   <div className="flex flex-wrap gap-1 justify-center mt-2">
@@ -291,19 +311,19 @@ export default function AnalysisPage() {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Sleep Time:</span>
-                    <span className="font-semibold">{analysis.baseline?.mean_total_sleep || 462} min</span>
+                    <span className="font-semibold">{typeof analysis.baseline?.mean_total_sleep === 'number' ? analysis.baseline.mean_total_sleep.toFixed(1) : '462'} min</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Efficiency:</span>
-                    <span className="font-semibold">{analysis.baseline?.mean_efficiency?.toFixed(1) || 90.2}%</span>
+                    <span className="font-semibold">{typeof analysis.baseline?.mean_efficiency === 'number' ? analysis.baseline.mean_efficiency.toFixed(1) : '90.2'}%</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Deep Sleep:</span>
-                    <span className="font-semibold">{analysis.baseline?.mean_deep || 106} min</span>
+                    <span className="font-semibold">{typeof analysis.baseline?.mean_deep === 'number' ? analysis.baseline.mean_deep.toFixed(1) : '106'} min</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Awakenings:</span>
-                    <span className="font-semibold">{analysis.baseline?.mean_awakenings?.toFixed(1) || 2.6}</span>
+                    <span className="font-semibold">{typeof analysis.baseline?.mean_awakenings === 'number' ? analysis.baseline.mean_awakenings.toFixed(1) : '2.6'}</span>
                   </div>
                 </div>
               </div>
@@ -364,26 +384,11 @@ export default function AnalysisPage() {
               </div>
               <Badge className="bg-green-100 text-green-800">Patient-Friendly</Badge>
             </div>
-            <div
-              className="prose prose-green max-w-none prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:text-gray-700"
-              dangerouslySetInnerHTML={{
-                __html: reports.patient_report
-                  .split('\n')
-                  .map((line: string) => {
-                    if (line.startsWith('# ')) return `<h1 class="text-3xl font-bold mb-4">${line.slice(2)}</h1>`;
-                    if (line.startsWith('## ')) return `<h2 class="text-xl font-semibold mt-6 mb-3">${line.slice(3)}</h2>`;
-                    if (line.startsWith('### ')) return `<h3 class="text-lg font-semibold mt-4 mb-2">${line.slice(4)}</h3>`;
-                    if (line.startsWith('- ')) return `<li>${line.slice(2)}</li>`;
-                    if (line.match(/^\d+\. /)) return `<li>${line.replace(/^\d+\. /, '')}</li>`;
-                    if (line.includes('**')) {
-                      return `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`;
-                    }
-                    if (line.trim()) return `<p>${line}</p>`;
-                    return '';
-                  })
-                  .join('')
-              }}
-            />
+            <div className="prose prose-green max-w-none prose-headings:text-gray-900 prose-h2:text-xl prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-p:text-gray-700 prose-p:leading-relaxed prose-strong:text-gray-900 prose-ul:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-td:border prose-td:px-2 prose-td:py-1">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {reports.patient_report}
+              </ReactMarkdown>
+            </div>
           </Card>
         )}
 
@@ -400,29 +405,11 @@ export default function AnalysisPage() {
               </div>
               <Badge variant="outline">GRADE Methodology</Badge>
             </div>
-            <div
-              className="prose prose-blue max-w-none text-sm prose-headings:text-gray-900 prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:font-semibold prose-table:text-xs prose-p:text-gray-700"
-              dangerouslySetInnerHTML={{
-                __html: reports.clinical_report
-                  .split('\n')
-                  .map((line: string) => {
-                    if (line.startsWith('# ')) return `<h1 class="text-2xl font-bold mb-4">${line.slice(2)}</h1>`;
-                    if (line.startsWith('## ')) return `<h2 class="text-lg font-semibold mt-6 mb-3">${line.slice(3)}</h2>`;
-                    if (line.startsWith('### ')) return `<h3 class="text-base font-semibold mt-4 mb-2">${line.slice(4)}</h3>`;
-                    if (line.startsWith('- ')) return `<li>${line.slice(2)}</li>`;
-                    if (line.startsWith('| ')) {
-                      const cells = line.split('|').filter(c => c.trim());
-                      return `<tr>${cells.map(c => `<td class="border px-2 py-1">${c.trim()}</td>`).join('')}</tr>`;
-                    }
-                    if (line.includes('**')) {
-                      return `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</p>`;
-                    }
-                    if (line.trim()) return `<p>${line}</p>`;
-                    return '';
-                  })
-                  .join('')
-              }}
-            />
+            <div className="prose prose-blue max-w-none text-sm prose-headings:text-gray-900 prose-h2:text-lg prose-h2:font-semibold prose-h2:mt-6 prose-h2:mb-3 prose-h3:text-base prose-h3:font-semibold prose-table:text-xs prose-p:text-gray-700 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:px-2 prose-th:py-1 prose-td:border prose-td:px-2 prose-td:py-1">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {reports.clinical_report}
+              </ReactMarkdown>
+            </div>
           </Card>
         )}
 

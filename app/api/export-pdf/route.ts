@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
       analysisId
     );
 
-    // Return as downloadable PDF
-    return new NextResponse(pdfBuffer, {
+    // Return as downloadable PDF (Uint8Array for BodyInit type compatibility)
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="somni-clinical-report-${analysisId}.pdf"`

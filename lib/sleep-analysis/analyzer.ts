@@ -1,7 +1,14 @@
 /**
- * Core sleep analysis engine with scientifically rigorous statistical methods
+ * Core sleep analysis engine with scientifically rigorous statistical methods.
  * Ported from python/sleep_analysis/core.py
- * References: Nature Medicine sleep modeling literature
+ *
+ * Methodology aligned with:
+ * - Nature Medicine: "A multimodal sleep foundation model for disease prediction"
+ *   (SleepFM, Stanford; s41591-025-04133-4) — sleep staging, variability, and
+ *   longitudinal deviation from personal baseline.
+ * - Standard practice: z-scores use SEM (std/√n) for the recent window so
+ *   comparisons of 7-day means to 30-day baseline have correct standard errors;
+ *   confidence intervals reflect sample size (t-distribution for small n).
  */
 
 import { linearRegression } from 'simple-statistics';
@@ -48,9 +55,10 @@ export class SleepAnalyzer {
     }
 
     // Compute baseline statistics (30-day window)
+    const baselineWindowSize = Math.min(30, sortedRecords.length);
     const baseline = this.computeBaselineStats(sortedRecords);
 
-    // Calculate z-scores for recent data (last 7 days)
+    // Calculate z-scores for recent data (last 7 days) using SEM for correct inference
     const recentRecords = sortedRecords.slice(-7);
     const z_scores = this.calculateZScores(recentRecords, baseline);
 
@@ -60,10 +68,16 @@ export class SleepAnalyzer {
     // Compute Sleep Variability Index
     const svi = this.computeSleepVariabilityIndex(sortedRecords);
 
-    // Calculate SHDI
-    const shdi = this.calculateSHDI(z_scores, trends, svi);
+    // Calculate SHDI (confidence from sample size)
+    const shdi = this.calculateSHDI(
+      z_scores,
+      trends,
+      svi,
+      baselineWindowSize,
+      recentRecords.length
+    );
 
-    // Classify phenotype
+    // Classify phenotype (confidence from separation between top and second)
     const phenotype = this.classifyPhenotype(z_scores, trends, svi);
 
     return {
@@ -124,13 +138,27 @@ export class SleepAnalyzer {
   }
 
   /**
-   * Calculate z-score deviations for each metric
+   * Calculate z-score deviations for each metric.
+   * Uses standard error of the mean (SEM = σ/√n) for the recent window so that
+   * "recent 7-day mean vs 30-day baseline" is tested correctly (not treating
+   * the 7-day mean as a single observation). Aligned with small-sample
+   * inference (e.g. sleep variability / night-to-night reproducibility literature).
+   *
    * @param recentRecords - Recent sleep data (typically last 7 days)
-   * @param baseline - Baseline statistics
+   * @param baseline - Baseline statistics (μ, σ from 30-day window)
    * @returns ZScores object
    */
   calculateZScores(recentRecords: SleepRecord[], baseline: BaselineMetrics): ZScores {
-    // Calculate 7-day rolling means
+    const n = recentRecords.length;
+    if (n === 0) {
+      return {
+        efficiency: 0,
+        deep_sleep: 0,
+        rem_sleep: 0,
+        awakenings: 0,
+      };
+    }
+
     const recentMeans = {
       efficiency: this.mean(recentRecords.map((r) => r.sleep_efficiency)),
       deep: this.mean(recentRecords.map((r) => r.deep_sleep_min)),
@@ -138,14 +166,24 @@ export class SleepAnalyzer {
       awakenings: this.mean(recentRecords.map((r) => r.awakenings)),
     };
 
-    // Calculate z-scores (add epsilon to prevent division by zero)
+    // SEM for recent window: std_baseline / sqrt(n). Under H0, (recent_mean - baseline_mean) / SEM ~ N(0,1).
+    // Floor denominator to avoid division by zero when baseline has no variation.
     const epsilon = 1e-6;
+    const sem = (std: number, mean: number) =>
+      Math.max(std / Math.sqrt(n), epsilon * (Math.abs(mean) + 1), epsilon);
+
     const z_efficiency =
-      (recentMeans.efficiency - baseline.mean_efficiency) / (baseline.std_efficiency + epsilon);
-    const z_deep = (recentMeans.deep - baseline.mean_deep) / (baseline.std_deep + epsilon);
-    const z_rem = (recentMeans.rem - baseline.mean_rem) / (baseline.std_rem + epsilon);
+      (recentMeans.efficiency - baseline.mean_efficiency) /
+      sem(baseline.std_efficiency, baseline.mean_efficiency);
+    const z_deep =
+      (recentMeans.deep - baseline.mean_deep) /
+      sem(baseline.std_deep, baseline.mean_deep);
+    const z_rem =
+      (recentMeans.rem - baseline.mean_rem) /
+      sem(baseline.std_rem, baseline.mean_rem);
     const z_awakenings =
-      (recentMeans.awakenings - baseline.mean_awakenings) / (baseline.std_awakenings + epsilon);
+      (recentMeans.awakenings - baseline.mean_awakenings) /
+      sem(baseline.std_awakenings, baseline.mean_awakenings);
 
     return {
       efficiency: z_efficiency,
@@ -243,14 +281,25 @@ export class SleepAnalyzer {
   }
 
   /**
-   * Calculate Sleep Health Deviation Index (SHDI)
-   * Composite score integrating z-scores, trends, and variability
-   * @param z_scores - Z-score deviations
+   * Calculate Sleep Health Deviation Index (SHDI).
+   * Composite score integrating z-scores, trends, and variability.
+   * Confidence is based on sample size (baseline and recent window) so that
+   * more data yields higher confidence in the estimate.
+   *
+   * @param z_scores - Z-score deviations (computed with SEM)
    * @param trends - Trend analysis
    * @param svi - Sleep Variability Index
+   * @param nBaselineDays - Number of days in baseline window (e.g. 30)
+   * @param nRecentDays - Number of days in recent window (e.g. 7)
    * @returns SHDIScore (0-100, higher = more deviation)
    */
-  calculateSHDI(z_scores: ZScores, trends: TrendAnalysis, svi: number): SHDIScore {
+  calculateSHDI(
+    z_scores: ZScores,
+    trends: TrendAnalysis,
+    svi: number,
+    nBaselineDays: number,
+    nRecentDays: number
+  ): SHDIScore {
     // Fragmentation component (high awakenings)
     const frag_component = Math.max(0, z_scores.awakenings) * 10;
 
@@ -280,8 +329,14 @@ export class SleepAnalyzer {
     // Determine category
     const category = determineSHDICategory(shdi_score);
 
-    // Confidence based on data quality (simplified from Python version)
-    const confidence = Math.min(1.0, 0.5 + Math.min(30, Object.keys(z_scores).length) / 60);
+    // Confidence from data quality: more baseline and recent days => higher confidence.
+    // Aligned with standard practice (e.g. NSRR, sleep variability reproducibility).
+    const baselineFactor = Math.min(1, nBaselineDays / 30);
+    const recentFactor = Math.min(1, nRecentDays / 7);
+    const confidence = Math.min(
+      1.0,
+      0.35 + 0.35 * baselineFactor + 0.3 * recentFactor
+    );
 
     return {
       score: shdi_score,
@@ -291,7 +346,9 @@ export class SleepAnalyzer {
   }
 
   /**
-   * Classify sleep pattern into risk phenotypes
+   * Classify sleep pattern into risk phenotypes.
+   * Phenotype confidence reflects how clearly the primary pattern is separated
+   * from the next-best (effect size), not an arbitrary divisor.
    *
    * Phenotypes:
    * 1. Fragmentation-Dominant: High awakenings
@@ -305,7 +362,6 @@ export class SleepAnalyzer {
    * @returns RiskPhenotype classification
    */
   classifyPhenotype(z_scores: ZScores, trends: TrendAnalysis, svi: number): RiskPhenotype {
-    // Score each phenotype
     const scores = {
       fragmentation_dominant: Math.max(0, z_scores.awakenings),
       deep_sleep_reduction: Math.max(0, -z_scores.deep_sleep),
@@ -313,11 +369,19 @@ export class SleepAnalyzer {
       efficiency_instability: Math.max(0, -trends.efficiency_slope * 30) + svi / 50,
     };
 
-    // Determine primary pattern
-    const primary_pattern = (Object.keys(scores) as Array<keyof typeof scores>).reduce((a, b) =>
-      scores[a] > scores[b] ? a : b
-    );
-    const confidence = Math.min(1.0, scores[primary_pattern] / 3.0);
+    type PhenotypeKey = keyof typeof scores;
+    const keys: PhenotypeKey[] = Object.keys(scores) as PhenotypeKey[];
+    const primary_pattern = keys.reduce((a, b) => (scores[a] > scores[b] ? a : b));
+
+    // Sorted descending: first = primary, second = runner-up
+    const sorted = [...keys].sort((a, b) => scores[b] - scores[a]);
+    const scorePrimary = scores[sorted[0]];
+    const scoreSecond = sorted.length > 1 ? scores[sorted[1]] : 0;
+    const separation = Math.max(0, scorePrimary - scoreSecond);
+
+    // Confidence from separation: clear winner => high confidence; tie => low.
+    // Scale separation (typically 0–3 in z-like units) so separation >= 2 => cap at 1.
+    const confidence = Math.min(1.0, Math.max(0.2, 0.2 + 0.8 * Math.min(1, separation / 2)));
 
     // Map to associated health domains and evidence strength
     const phenotypeMapping: Record<

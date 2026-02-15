@@ -21,11 +21,16 @@ export async function POST(req: NextRequest) {
 
     console.log('[Reports] Generating reports for analysis:', analysisId);
 
-    // Check if we have API keys for full orchestration (Bright Data optional — free tier uses mock data)
-    const hasCoreKeys =
-      process.env.ANTHROPIC_API_KEY &&
-      process.env.OPENAI_API_KEY &&
-      process.env.PERPLEXITY_API_KEY;
+    // Require Anthropic + OpenAI for medical reasoning; Perplexity and Bright Data are optional (mock used when missing)
+    const hasAnthropic = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+    const hasOpenAI = Boolean(process.env.OPENAI_API_KEY?.trim());
+    const hasPerplexity = Boolean(process.env.PERPLEXITY_API_KEY?.trim());
+    const hasCoreKeys = hasAnthropic && hasOpenAI;
+
+    console.log(
+      '[Reports] API keys:',
+      { anthropic: hasAnthropic, openai: hasOpenAI, perplexity: hasPerplexity, orchestration: hasCoreKeys }
+    );
 
     let patientReport: string;
     let clinicalReport: string;
@@ -35,12 +40,12 @@ export async function POST(req: NextRequest) {
     if (hasCoreKeys) {
       console.log('[Reports] Using full multi-agent orchestration');
 
-      // Full orchestration (Bright Data key optional; mock guideline data used when missing)
+      // Full orchestration (Perplexity/Bright Data optional; mocks used when missing)
       const orchestrator = new SOMNIOrchestrator(
         process.env.ANTHROPIC_API_KEY!,
         process.env.OPENAI_API_KEY!,
-        process.env.PERPLEXITY_API_KEY!,
-        process.env.BRIGHTDATA_API_KEY ?? ''
+        process.env.PERPLEXITY_API_KEY?.trim() ?? '',
+        process.env.BRIGHTDATA_API_KEY?.trim() ?? ''
       );
 
       const reports = await orchestrator.orchestrate(sleepAnalysis);
@@ -50,7 +55,9 @@ export async function POST(req: NextRequest) {
       usage = reports.usage;
 
     } else {
-      console.log('[Reports] Using direct report generation (core API keys not configured)');
+      console.log(
+        '[Reports] Using direct report generation (need ANTHROPIC_API_KEY + OPENAI_API_KEY for medical reasoning)'
+      );
 
       // Fallback: Generate reports directly without orchestration
       // Mock evidence for demo

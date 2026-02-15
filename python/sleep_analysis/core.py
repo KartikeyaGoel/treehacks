@@ -1,6 +1,11 @@
 """
-Core sleep analysis engine with scientifically rigorous statistical methods
-References: Nature Medicine sleep modeling literature
+Core sleep analysis engine with scientifically rigorous statistical methods.
+
+Methodology aligned with:
+- Nature Medicine: "A multimodal sleep foundation model for disease prediction"
+  (SleepFM, Stanford; 2026) — sleep staging, variability, longitudinal deviation.
+- Z-scores use SEM (std/√n) for the recent window; confidence from sample size
+  and phenotype separation (effect size).
 """
 
 import pandas as pd
@@ -62,6 +67,7 @@ class SleepAnalyzer:
 
         # Compute baseline statistics (30-day window)
         baseline = self.compute_baseline_stats(df)
+        baseline_window_size = min(30, len(df))
 
         # Calculate z-scores for recent data (last 7 days)
         recent_df = df.tail(7)
@@ -73,8 +79,12 @@ class SleepAnalyzer:
         # Compute Sleep Variability Index
         svi = self.compute_sleep_variability_index(df)
 
-        # Calculate SHDI
-        shdi = self.calculate_shdi(z_scores, trends, svi)
+        # Calculate SHDI (confidence from sample size)
+        shdi = self.calculate_shdi(
+            z_scores, trends, svi,
+            n_baseline_days=baseline_window_size,
+            n_recent_days=len(recent_df)
+        )
 
         # Classify phenotype
         phenotype = self.classify_phenotype(z_scores, trends, svi)
@@ -134,16 +144,14 @@ class SleepAnalyzer:
         baseline: BaselineMetrics
     ) -> ZScores:
         """
-        Calculate z-score deviations for each metric
-
-        Args:
-            current_df: Recent sleep data (typically last 7 days)
-            baseline: Baseline statistics
-
-        Returns:
-            ZScores object
+        Calculate z-score deviations using SEM (std/sqrt(n)) for the recent window
+        so that "7-day mean vs 30-day baseline" is tested correctly (standard error
+        of the mean for small-sample inference).
         """
-        # Calculate 7-day rolling means
+        n = len(current_df)
+        if n == 0:
+            return ZScores(efficiency=0.0, deep_sleep=0.0, rem_sleep=0.0, awakenings=0.0)
+
         recent_means = {
             'efficiency': current_df['sleep_efficiency'].mean(),
             'deep': current_df['deep_sleep_min'].mean(),
@@ -151,11 +159,19 @@ class SleepAnalyzer:
             'awakenings': current_df['awakenings'].mean()
         }
 
-        # Calculate z-scores
-        z_efficiency = (recent_means['efficiency'] - baseline.mean_efficiency) / (baseline.std_efficiency + 1e-6)
-        z_deep = (recent_means['deep'] - baseline.mean_deep) / (baseline.std_deep + 1e-6)
-        z_rem = (recent_means['rem'] - baseline.mean_rem) / (baseline.std_rem + 1e-6)
-        z_awakenings = (recent_means['awakenings'] - baseline.mean_awakenings) / (baseline.std_awakenings + 1e-6)
+        eps = 1e-6
+
+        def sem(std: float, mean: float) -> float:
+            return max(std / np.sqrt(n), eps * (abs(mean) + 1), eps)
+
+        z_efficiency = (recent_means['efficiency'] - baseline.mean_efficiency) / sem(
+            baseline.std_efficiency, baseline.mean_efficiency
+        )
+        z_deep = (recent_means['deep'] - baseline.mean_deep) / sem(baseline.std_deep, baseline.mean_deep)
+        z_rem = (recent_means['rem'] - baseline.mean_rem) / sem(baseline.std_rem, baseline.mean_rem)
+        z_awakenings = (recent_means['awakenings'] - baseline.mean_awakenings) / sem(
+            baseline.std_awakenings, baseline.mean_awakenings
+        )
 
         return ZScores(
             efficiency=float(z_efficiency),
@@ -252,49 +268,29 @@ class SleepAnalyzer:
         self,
         z_scores: ZScores,
         trends: TrendAnalysis,
-        svi: float
+        svi: float,
+        n_baseline_days: int = 30,
+        n_recent_days: int = 7
     ) -> SHDIScore:
         """
-        Calculate Sleep Health Deviation Index (SHDI)
-
-        Composite score integrating z-scores, trends, and variability
-
-        Args:
-            z_scores: Z-score deviations
-            trends: Trend analysis
-            svi: Sleep Variability Index
-
-        Returns:
-            SHDIScore (0-100, higher = more deviation)
+        Calculate Sleep Health Deviation Index (SHDI).
+        Confidence is based on sample size (baseline and recent window).
         """
-        # Fragmentation component (high awakenings)
         frag_component = max(0, z_scores.awakenings) * 10
-
-        # Deep sleep component (reduction)
         deep_component = max(0, -z_scores.deep_sleep) * 10
-
-        # REM component (deviation in either direction)
         rem_component = abs(z_scores.rem_sleep) * 10
-
-        # Efficiency component (declining trend)
         eff_component = max(0, -trends.efficiency_slope * 50)
-
-        # Variability component
         var_component = svi / 10
 
-        # Weighted sum
         shdi_raw = (
-            self.WEIGHTS['fragmentation'] * frag_component +
-            self.WEIGHTS['deep_sleep'] * deep_component +
-            self.WEIGHTS['rem_sleep'] * rem_component +
-            self.WEIGHTS['efficiency'] * eff_component +
-            self.WEIGHTS['variability'] * var_component
+            self.WEIGHTS['fragmentation'] * frag_component
+            + self.WEIGHTS['deep_sleep'] * deep_component
+            + self.WEIGHTS['rem_sleep'] * rem_component
+            + self.WEIGHTS['efficiency'] * eff_component
+            + self.WEIGHTS['variability'] * var_component
         )
-
-        # Normalize to 0-100
         shdi_score = min(100, shdi_raw)
 
-        # Determine category
         if shdi_score < 30:
             category = "stable"
         elif shdi_score < 60:
@@ -302,8 +298,9 @@ class SleepAnalyzer:
         else:
             category = "significant_drift"
 
-        # Confidence based on data quality
-        confidence = min(1.0, 0.5 + (min(30, len(z_scores.__dict__)) / 60))
+        baseline_factor = min(1.0, n_baseline_days / 30)
+        recent_factor = min(1.0, n_recent_days / 7)
+        confidence = min(1.0, 0.35 + 0.35 * baseline_factor + 0.3 * recent_factor)
 
         return SHDIScore(
             score=float(shdi_score),
@@ -334,7 +331,6 @@ class SleepAnalyzer:
         Returns:
             RiskPhenotype classification
         """
-        # Score each phenotype
         scores = {
             'fragmentation_dominant': max(0, z_scores.awakenings),
             'deep_sleep_reduction': max(0, -z_scores.deep_sleep),
@@ -342,9 +338,12 @@ class SleepAnalyzer:
             'efficiency_instability': max(0, -trends.efficiency_slope * 30) + (svi / 50)
         }
 
-        # Determine primary pattern
         primary_pattern = max(scores, key=scores.get)
-        confidence = min(1.0, scores[primary_pattern] / 3.0)
+        sorted_keys = sorted(scores, key=scores.get, reverse=True)
+        score_primary = scores[sorted_keys[0]]
+        score_second = scores[sorted_keys[1]] if len(sorted_keys) > 1 else 0
+        separation = max(0, score_primary - score_second)
+        confidence = min(1.0, max(0.2, 0.2 + 0.8 * min(1, separation / 2)))
 
         # Map to associated health domains and evidence strength
         phenotype_mapping = {

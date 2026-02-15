@@ -32,16 +32,16 @@ CRITICAL CONSTRAINTS:
 
 Your workflow:
 1. Analyze sleep deviation JSON (SHDI, z-scores, phenotypes)
-2. Determine if OpenAI o1 deep reasoning needed (SHDI > 60 OR multi-phenotype detected)
+2. Always invoke invoke_o1_reasoning at least once for deep clinical reasoning (use a reasoning_prompt summarizing the case and key deviations). This is required for every analysis.
 3. Construct precise PubMed queries using MeSH terms for identified phenotypes
 4. Invoke BrightData to scrape CDC/AHA public health guidelines and disparity data
-5. Use Perplexity Sonar for consensus detection and conflict resolution
+5. Use Perplexity Sonar for consensus detection when available
 6. Evaluate evidence consistency - if conflicts detected, re-query with refined search
 7. Generate dual reports: patient (empathetic, 8th grade reading) + clinical (evidence-graded)
 
 Tools available:
 - query_pubmed: Search medical literature (max 5 results per query)
-- invoke_o1_reasoning: Deep clinical reasoning for complex cases
+- invoke_o1_reasoning: Deep clinical reasoning — call this at least once per analysis for ranked risk domains and reasoning trace
 - scrape_guidelines: BrightData public health data extraction
 - sonar_consensus: Perplexity meta-analysis and consensus detection
 - assess_evidence_quality: Self-evaluate evidence consistency
@@ -245,7 +245,7 @@ export class SOMNIOrchestrator {
   private o1ReasoningTool() {
     return {
       name: 'invoke_o1_reasoning',
-      description: 'Invoke OpenAI o1 for deep clinical reasoning on complex cases (SHDI > 60 or multi-phenotype). Returns ranked risk domains, confidence levels, screening recommendations, and reasoning trace.',
+      description: 'Invoke OpenAI o1 for deep clinical reasoning. Call this at least once per analysis. Returns ranked risk domains, confidence levels, screening recommendations, and reasoning trace.',
       input_schema: {
         type: 'object' as const,
         properties: {
@@ -448,6 +448,14 @@ export class SOMNIOrchestrator {
 
   private async queryPerplexity(input: any): Promise<ConsensusResult> {
     const { query } = input;
+
+    if (!this.perplexityKey?.trim()) {
+      console.log('[Perplexity] No API key; returning mock consensus');
+      return {
+        consensus: 'Evidence synthesis based on available literature and guidelines (Perplexity not configured).',
+        citations: []
+      };
+    }
 
     try {
       const response = await fetch('https://api.perplexity.ai/chat/completions', {
