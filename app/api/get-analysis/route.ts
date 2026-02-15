@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnalysis } from '@/lib/cache';
 
+// Force dynamic: this route uses request (query params) and must not be statically generated
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
+    const id = req.nextUrl.searchParams.get('id');
 
     if (!id) {
       return NextResponse.json(
