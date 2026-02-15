@@ -1,3 +1,4 @@
+import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { ClinicalReportPDF } from './clinical-pdf';
 import type { SleepAnalysisResult, ResearchEvidence } from '../agents/types';
@@ -28,8 +29,8 @@ export async function generateClinicalReportPDF(
     analysisId,
   });
 
-  // Render the React-PDF document to a buffer
-  const pdfBuffer = await renderToBuffer(pdfElement);
+  // Render the React-PDF document to a buffer (cast: component returns JSX element)
+  const pdfBuffer = await renderToBuffer(pdfElement as React.ReactElement);
 
   return Buffer.from(pdfBuffer);
 }
