@@ -126,7 +126,7 @@ export class SOMNIOrchestrator {
       console.log(`[Orchestrator] Turn ${currentTurn + 1}/${this.maxTurns}`);
 
       const response = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-6',
         max_tokens: 8192,
         system: ORCHESTRATOR_SYSTEM_PROMPT,
         messages: this.conversationHistory as any[],
@@ -420,11 +420,12 @@ export class SOMNIOrchestrator {
     console.log('[o1] Reasoning prompt:', reasoning_prompt.substring(0, 100) + '...');
 
     try {
+      // Medical reasoning: GPT 5.2 (Chat Completions)
       const response = await this.openai.chat.completions.create({
-        model: 'o1-preview',
+        model: 'gpt-5.2',
         messages: [
           {
-            role: 'developer',
+            role: 'system',
             content: O1_MEDICAL_REASONING_SYSTEM_PROMPT
           },
           {
@@ -432,7 +433,6 @@ export class SOMNIOrchestrator {
             content: `${reasoning_prompt}\n\n**Sleep Data Summary:**\n${sleep_data_summary}\n\nProvide:\n1. Ranked risk domains with confidence and effect sizes\n2. Screening suggestions (preventive only)\n3. Step-by-step reasoning trace\n4. Confidence assessment`
           }
         ],
-        reasoning_effort: 'high',
         max_completion_tokens: 4000
       });
 
